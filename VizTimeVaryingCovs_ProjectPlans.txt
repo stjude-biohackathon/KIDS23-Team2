@@ -1,0 +1,22 @@
+PRIMARY GOAL: 
+	demo that can upload data and plot survival probability for time-varying covariates 
+	(can require binary only, can require specific trajectories)
+
+SECONDARY GOALS: 
+	(1) user-specified trajectories
+	(2) prettier plot: user-specify elements (labels, legend, colors, etc.)
+	(3) option to show (invalid) use of time-varying covariate as baseline covariate
+	(4) arbitrary data names
+
+TERTIARY GOALS:
+	(1) non-martingale representation for input data (or martingale expression, if that is the original)
+	(2) arbitrary class of time-varying covariate 
+	
+
+
+
+ROLES:
+	presenter
+	UI/front end
+	back end
+	good data examples
