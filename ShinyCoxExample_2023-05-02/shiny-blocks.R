@@ -1,4 +1,4 @@
-
+########## SUBODH CHANGED ez.pickone
 
 #####################################################################
 # Generate ui and server code for to pick one choice from a dropdown
@@ -11,9 +11,15 @@ ez.pickone=function(vname,    # Variable name
 {
   ui.code=paste0("selectInput(inputId = '",vname,
                  "', label = '",label,"'",
-                 ", choices = c(", 
-                 paste0(
-                   paste0("'",choices,"'"),collapse=", "),"))")
+                 ", choices = ", 
+                 paste0(choices,
+                        collapse=", "),
+                 ")") # SUBODH CHANGED FLOW AND REMOVED THE BELOW:
+  
+                 # ", choices = c(",  # this adds an extra c() 
+                 # paste0(choices,
+                          # paste0("'",choices,"'"), # this causes quotes around everything
+                 #   collapse=", "),"))") # SUBODH CHANGED FLOW
   server.code=paste0(vname," = input$",vname)
   return(list(ui.code=ui.code,
               server.code=server.code))

@@ -1,3 +1,6 @@
+##### SUBODH EDITED VERSION
+### 2022-04-11: changed shine.coxph ui.code and server.code; added cox predicted times table
+
 
 shine.coxph=function(...)
   
@@ -25,6 +28,20 @@ shine.coxph=function(...)
   if (is.null(clrs))
     clrs=rainbow(n.model)
   
+  ##########################
+  # get app directory
+  app.dir=input.list$app.dir
+  if (is.null(app.dir))
+  {
+    app.dir=getwd()
+  }
+  date.time=as.character(Sys.time())
+  date.time=gsub(":","-",date.time,fixed=T)
+  date.time=gsub(" ","-",date.time,fixed=T)
+  app.dir=paste0(app.dir,"/",date.time,"/")
+  dir.create(app.dir)
+  message(paste0("Shiny app will be written in directory ",app.dir,"."))
+  
   #######################
   # convert the coxph models to coxfit objects
   coxfit.list=vector("list",n.model)
@@ -33,9 +50,21 @@ shine.coxph=function(...)
   names(coxfit.list)=names(model.list)
   
   #######################
+  # Save app data into app directory
+  cox.fit.list=coxfit.list
+  save(cox.fit.list,clrs,file=paste0(app.dir,"appData.Rdata"))
+  
+  #######################
   # get different code sections
   input.data.code=write.coxfit.input.data.code(coxfit.list)
   KM.plot.code=write.KM.plot.code(coxfit.list,clrs)
+  
+  ########################
+  # generate header code
+  hdr.code=c("#rm(list=ls())",
+             "options(stringsAsFactors=F)",
+             paste0("load('",app.dir,"appData.Rdata')"))
+             
   
   ########################
   # generate ui code
@@ -43,17 +72,71 @@ shine.coxph=function(...)
             "             h1('Cox Model Survival Predictions'),",
             "             sidebarLayout(",
             "             sidebarPanel(",
-            paste0("                          ",input.data.code$ui.code),
+            paste0("                          ", # SUBODH CHANGED FLOW
+                   input.data.code$ui.code,
+                   ","),
+            "textInput('predProbTimes','Times for predicted probabilities',placeholder='Enter values separated by a comma'),", # SUBODH ADDITION
             "actionButton(inputId = 'go', label = 'Generate Plot'),",
-            "actionButton(inputId = 'app.exit', label = 'Exit App')",
+            "actionButton(inputId = 'reset', label = 'Reset'),", # SUBODH ADDITION
+            "actionButton(inputId = 'app.exit', label = 'Exit App'),",
              "),",
             "mainPanel(",
             "h3('Predicted Survival Curve'),",
-            "plotOutput(outputId = 'KM'))))")
+            "plotOutput(outputId = 'KM'),",
+            "h3('Predicted Probability at Fixed Times'),", # SUBODH ADDITION
+            "textOutput(outputId='noPredTimes'),", # SUBODH ADDITION
+            "tableOutput(outputId = 'cox.times'),", # SUBODH ADDITION
+            "h3('Hazard Ratio Summary Table'),", # SUBODH ADDITION
+            "tableOutput(outputId = 'HR'),", # SUBODH ADDITION
+            "h3('Assessing the Proportional Hazards Assumption'),", # SUBODH ADDITION
+            "tableOutput(outputId = 'PHA')", # SUBODH ADDITION
+            ")))") # SUBODH CHANGED THE FLOW
   
   #########################
   # generate server code
+  server.code=c("server=function(input,output)",
+                "{",
+                "          observeEvent(input$app.exit, {stopApp()}) # Exit when exit button is pressed",
+                "          observeEvent(input$go, {",
+                
+                input.data.code,
+                KM.plot.code,
+                "predProbTable <- cox.times.table(KM.hat,input$predProbTimes)", # SUBODH ADDITION
+                "if (is.null(predProbTable)) output$noPredTimes <- renderText('No input times detected. If you provided times, check that you separated numbers with a single comma and you provided valid numbers.') else output$noPredTimes <- renderText(invisible())", # SUBODH ADDITION
+                "output$cox.times=renderTable(predProbTable,rownames=TRUE)", # SUBODH ADDITION
+                "output$HR=renderTable(cox.fit.list[[1]]$HR.table,rownames=TRUE)", # SUBODH ADDITION
+                "output$PHA=renderTable(cox.fit.list[[1]]$PHA.table$table,rownames=TRUE)", # SUBODH ADDITION
+                "})",
+                "          observeEvent(input$reset, {output$KM <- output$HR <- output$PHA <- output$cox.times <- NULL}) # Reset main area", # SUBODH ADDITION
+                "}") # SUBODH CHANGED THE FLOW
   
+  ##########################
+  # app code
+  app.code=c("cox.app=shinyApp(ui,server)",
+             "runApp(cox.app)")
+  
+  ###########################
+  # write the app file
+  app.code.file=paste0(app.dir,"shinyCoxapp.R")
+  write(unlist(hdr.code),file=app.code.file,sep="\n")
+  write(unlist(ui.code),file=app.code.file,sep="\n",append=T)
+  write(unlist(server.code),file=app.code.file,sep="\n",append=T)
+  write(unlist(app.code),file=app.code.file,sep="\n",append=T)
+  
+  
+  
+  ##########################
+  # return result
+  
+  res=list(app.dir=app.dir,
+           app.data.file=paste0(app.dir,"/appData.Rdata"),
+           app.code.file=app.code.file,
+           coxfit.list=coxfit.list,
+           hdr.code=hdr.code,
+           ui.code=ui.code,
+           server.code=server.code)
+  
+  return(res)
   
 }
 
@@ -80,7 +163,7 @@ write.KM.plot.code=function(cox.fit.list,clrs)
   
   compute.KM.hat=c("for (i in 1:n.models)",
                    "{",
-                   "   km.hat=predict.one.cox.fit(cox.fit.list[[i]],new.data)",
+                   "   km.hat=predict.one.coxfit(cox.fit.list[[i]],new.data)",
                    "   lp[i]=attr(km.hat,'lp')",
                    "   sfit=list(time=km.hat$time,surv=km.hat$surv)",
                    "   class(sfit)='survfit'",
@@ -136,6 +219,40 @@ cox.KM.plots=function(KM.hat,clrs=NULL)
          col=clrs,lwd=1,
          legend=names(KM.hat),
          cex=0.5)
+}
+
+#############################
+# Generate Cox predicted times table: SUBODH NEW ADDITION
+
+predSurvTime <- function(kmIn,timeIn) { # expects a data frame with columns of time and surv 
+  kmIn$surv[max(which(kmIn$time <= timeIn))]
+}
+
+cox.times.table=function(KM.hat,fixTimes=NULL)
+  
+{
+  n.models=length(KM.hat)
+  
+  if (is.null(names(KM.hat)))
+    names(KM.hat)=paste0("model ",1:n.models)
+  
+  if (is.null(fixTimes) | fixTimes=="") {
+    return(NULL)
+  } else {
+    predTimes <- as.numeric(unlist(strsplit(fixTimes,split=","))) # expects an input character string of numbers each separated by a comma
+    if (any(is.na(predTimes))) return(NULL)
+  }
+  
+  tabOut <- matrix(nrow=n.models,ncol=length(predTimes))
+  rownames(tabOut) <- names(KM.hat)
+  colnames(tabOut) <- paste("Time:",predTimes)
+  
+  for (i in 1:n.models){
+    for (j in 1:length(predTimes)){
+      tabOut[i,j] <- predSurvTime(KM.hat[[i]],predTimes[j])
+    }
+  }
+    return(tabOut)
 }
 
 
@@ -289,14 +406,15 @@ get.xrng.cox.fits=function(cox.fit.list,vnames)
   
   for (i in 1:n.models)
   {
-    x.rng=cox.fit.list[[i]]$x.rng # num.x.rng does not exist in this iteration; change to read in all 
-    for (j in num.vars) # change to index only numeric variables rather than all of x.rng, which includes non-numeric variables
+    x.rng=cox.fit.list[[i]]$num.x.rng
+    for (j in 1:ncol(rng.mtx))
     {
-      x.name=colnames(x.rng)[j]
-      rng.mtx[1,x.name]=min(x.rng[1,j],rng.mtx[1,x.name],na.rm=T) #  min across models
-      rng.mtx[2,x.name]=max(x.rng[2,j],rng.mtx[2,x.name],na.rm=T)  # max across models, changed from min
+      x.name=colnames(rng.mtx)[j]
+      rng.mtx[1,x.name]=min(x.rng[1,j],rng.mtx[1,x.name],na.rm=T)
+      rng.mtx[2,x.name]=min(x.rng[2,j],rng.mtx[2,x.name],na.rm=T)
     }
   }
   return(rng.mtx)
 }
+
 

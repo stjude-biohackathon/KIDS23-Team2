@@ -43,7 +43,6 @@ rm(dset)
 ########################################
 # Generate an app for the example data set model
 
-
 source("~/Research/Projects/Methods/ShinyCox/cox-predictions.R")
 source("~/Research/Projects/Methods/ShinyCox/shiny-blocks.R")
 source("~/Research/Projects/Methods/ShinyCox/shiny-builder.R")
@@ -52,3 +51,20 @@ app.dir="~/Research/Projects/Methods/ShinyCox/TestApps/"
 test.res=shine.coxph(cox.fit1,         # pass the coxph fit result
                      app.dir=app.dir,  # application directory
                      launch.app=T)     # indicates whether to launch the app after it is created
+
+
+##############################################
+# Now try for the AML02 data set
+
+
+aml08.arm1 <- read.csv("arm1.csv")
+
+NEED TO EDIT
+
+
+aml02.cox.efs=coxph(EFS~WBC+AGE+initialRisk,data=aml02.data,
+                    x=T,model=T)
+aml02.shiny=shine.coxph(aml02.cox.efs,
+                        app.dir=app.dir,
+                        launch.app=T)
+
