@@ -1,7 +1,7 @@
 
 library(shiny)
 library(survival)
-#library(survminer)
+library(survminer)
 library(tidyverse)
 library(fresh)
 library(shinythemes)
@@ -10,8 +10,11 @@ source("survfitCP.R")
 library(dplyr)
 library(DT)
 library(RColorBrewer)
+library(ggpubr)
+library(gridExtra)
+library(cowplot)
 
-ui <- fluidPage(titlePanel(div(tags$h1("Visualizing Survival Curves with Time-Varying Covariates"),img(src="SJ_Tag_H_C_PNG.Jpg", height=140, width=400) )),
+ui <- fluidPage(titlePanel(div(tags$h1("KIDS23 Time-Dependent Covariate Survival Visualization App"),img(src="SJ_Tag_H_C_PNG.Jpg", height=140, width=400) )),
                 # sidebarLayout(
                 #   sidebarPanel(),
                 #   mainPanel(
@@ -21,73 +24,69 @@ ui <- fluidPage(titlePanel(div(tags$h1("Visualizing Survival Curves with Time-Va
                 navbarPage(
                   theme = "mythemesj.css",  # <--- To use a theme, uncomment this
                   title="",
-                  tabPanel(title=tags$h4("Description"), 
+                  tabPanel(title=tags$h4("DESCRIPTION"), 
                            sidebarPanel(
-                             p(h3("About us:")),
-                             p(h4("This app was created by the St. Jude KIDS23 BioHackathon Team 2.")),
+                             p(h4("About us:")),
+                             p(h6("This app was created by the St. Jude KIDS23 BioHackathon Team 2.", style="color:black")),
                              #p(h1(HTML(paste0("Hello O",tags$sub("2"))))),
-                             p(h4(HTML(paste0("Team Lead: Subodh Selukar", tags$sup("1"))))),
-                             p(h4(HTML(paste0("Team Members: Chandrika Konwar,", tags$sup("2")," Ashish Makani,", tags$sup("3"),
+                             p(h6(HTML(paste0("Team Lead: Subodh Selukar", tags$sup("1"))), style="color:black")),
+                             p(h6(HTML(paste0("Team Members: Chandrika Konwar,", tags$sup("2")," Ashish Makani,", tags$sup("3"),
                              " Yonghui Ni,", tags$sup("1"),
-                               " Anna Eames Seffernick,", tags$sup("1"), " Chengzhou Wu,", tags$sup("4"), " Emily Zeng", tags$sup("1"))))),
-                             p(div(tags$h4("This work was inspired by Rosalie."),img(src="Rosalie.jpg", height=300, width=210) )),
-                             p(h5(HTML(paste0(tags$sup("1"), "St. Jude Children's Research Hospital, Department of Biostatistics")))),
-                             p(h5(HTML(paste0(tags$sup("2"), "CalTech")))),
-                             p(h5(HTML(paste0(tags$sup("3"), "?")))),
-                             p(h5(HTML(paste0(tags$sup("4"), "University of Memphis, School of Public Health, Department of Biostatistics"))))
+                               " Anna Eames Seffernick,", tags$sup("1"), " Chengzhou Wu,", tags$sup("4"), " Emily Zeng", tags$sup("1"))), style="color:black")),
+                             p(tags$h6("This work was inspired by Rosalie.", style="color:black")),
+                             div(img(src="Rosalie.jpg", height=300, width=210), style="text-align:center"),
+                             p(h6(HTML(paste0(tags$sup("1"), "St. Jude Children's Research Hospital, Department of Biostatistics")), style="color:black")),
+                             p(h6(HTML(paste0(tags$sup("2"), "California Institute of Technology, Biology and Bioengineering Division")), style="color:black")),
+                             p(h6(HTML(paste0(tags$sup("3"), "?")))),
+                             p(h6(HTML(paste0(tags$sup("4"), "University of Memphis, School of Public Health, Department of Biostatistics")), style="color:black"))
                              
                              
                              
                            ), # sidebarPanel
                            mainPanel(
-                             h1("Survival Prediction App"),
-                             h3("Introduction"),
-                             p("The Survival Prediction App provides a survival prediction curve 
-                               for time to event data of a group of subjects. These survival prediction 
-                               curves are highly useful in biomedical research and clinical trials
-                               concerning effectiveness of treatments and interventions. It typically 
-                               deals with clinical datasets containing information about time-to-event occurrence
-                               of death, withdrawal, relapse, adverse drug reaction and the appearance of 
-                               secondary infection or disease.", style="color:black"),
-                             h3("About the App"),
-                             p("The app has three main tabs. The Description tab consists of the basic description of
-                               the app, the Data tab is for user defined data input and visualization, and the Plot
-                               tab is to view the Jay-Betensky survial curves in the presence of time-varying covariates",
-                             span(tags$b(tags$a(href="https://www.pubmed.ncbi.nlm.nih.gov/33530128/", "(ref)."))), style="color:black"),
-                             h4("Input"),
-                             p("Users can input data saved as a .csv file. User defined input data needs to be formatted as a data.frame with the corresponding columns
-                               in the specified order: id, start, stop, event status, discrete time-varying covariate, additional
-                               covariates if using stabilized weights. All the input data needs to be transformed using the",
-                               span(tags$code("tmerge()")),
-                               "function in the",
-                               span(tags$code("R survival")),
-                               "library",
-                               span(tags$b(tags$a(href="https://cran.r-project.org/web/packages/survival/index.html", "(ref)."))),
-                               "This will allow the users to create a dataset with multiple time
-                               intervals for the different covariate values for each subject. For more information, please refer to 
-                               the", 
-                               span(tags$code("tmerge()")),
-                               span(tags$b(tags$a(href="https://www.rdocumentation.org/packages/survival/versions/3.5-5/topics/tmerge", "documentation."))), style="color:black"),
-                             p("Example datasets include GCD, PBC in the survival package.", style="color:black"),
-                             p("Note: The app only supports binary (0,1) time-depedent covariates at this time.", style="color:black"),
+                             h1("About the App"),
+                             h3("Background"),
+                             p("The TDC Vis App is an R Shiny App that can perform survival analysis using an appropriate user-uploaded file.
+                             Typical examples of survival analysis clinical data include information about time-to-event occurrence of death,
+                             withdrawal, relapse, adverse drug reaction and the appearance of secondary infection or disease.
+                               The main objective of the app is to provide an intuitive interface for interpreting survival analysis results
+                               with time-varying covariates. Extensions of the Cox proportional hazard to study the association between a variable 
+                               that can change after baseline and a time-to-event outcome of interest exist, but the interpretations can be challenging.
+                               A new approach described by Jay & Betensky (2021) overcomes this problem by predicting the survival function for
+                               a user-specified trajectory of one time-varying covariate. The TDC Vis app uses this method to predict survival curves
+                               for interpretable results of biomedical research.", style="color:black"),
+                             h3("How to use the App"),
+                             p("Once the user uploads the data file (specification below) in the DATA tab, the app provides a survival prediction curve
+                             that can be viewed or downloaded in the PLOT tab. This plot is accompanied by a ‘number at risk table’, the overall number
+                             of subjects at risk at fixed time points. The app also allows for comparison of multiple different transition times in the
+                             COMPARISON PLOT tab",style="color:black"),
+                             p(tags$b("Please Note: The app currently only supports binary (0,1) time dependent covariates with a one-way transition.
+                               The transition time represents the time at which a group transitions from covariate value 0 to value 1. "), style="color:black"),
+                             h4("Data File Format"),
+                             p("The expected data file should be in comma-separated values (csv) format with the corresponding columns in the 
+                             specified order: id, start, stop, event status, discrete time-varying covariate, additional covariates if using 
+                             stabilized weights (see Jay & Betensky article for details on weighting). Conventional survival data typically 
+                               needs to be transformed using the ",
+                               span(tags$code("tmerge()")), "function in the ",
+                               span(tags$code("R survival")), "library. This creates a dataset with 
+                               multiple rows of time intervals for each subject that represent covariate values changing over time.
+                               For more information about tmerge and time-varying covariates, please refer to the R documentation and vignette 
+                               (Therneau et al.).", style="color:black"),
                              h4("Customizations in the app"),
-                             p("> Transition Time", style="color:black"),
-                             p("> Whether to show confidence intervals", style="color:black"),
-                             p("> Whether to plot adjusted or unadjusted curves", style="color:black"),
-                             h4("Output"),
-                             p("The output is a 2D survival prediction curve that gives the probabiliyt of survival
-                               (Y axis) over a given length of time (X axis), cosnidering time in several small
-                               intervals.", style="color:black"),
+                             p("a. Users can vary the transition times of the survival curves in the PLOT tab.", style="color:black"),
+                             p("b. Users can compare the survival curves between multiple different transition times of their choice in the COMPARISON tab.", style="color:black"),
                              h3("References"),
                              p("1. Jay M, Betensky RA. Displyaing survival of patient groups defined by covariate paths:
-                               Extensions of the Kaplan-Meier estimator. Statistics in Medicine. 2021 Apr 15;40(8):2024-36.", style="color:black"),
+                               Extensions of the Kaplan-Meier estimator. Statistics in Medicine. 2021 Apr 15;40(8):2024-36", 
+                               span(tags$b(tags$a(href="https://www.pubmed.ncbi.nlm.nih.gov/33530128/", "(link)."))), style="color:black"),
                              p("2. Therneau T, Crowson C, Atkinson E. Using time dependent covariates and time dependent coefficients
-                               in the Cox model. Survival Vignettes. 2023 March 11;1-30.", style="color:black"),
-                             p("3. https://www.rdocumentation.org/packages/survival/versions/3.5-5/topics/tmerge", style="color:black")
+                               in the Cox model. Survival Vignettes. 2023 March 11;1-30",
+                               span(tags$b(tags$a(href="https://cran.r-project.org/web/packages/survival/index.html", "(link)."))),style="color:black"),
+                             p("3.", span(tags$b(tags$a(href="https://www.rdocumentation.org/packages/survival/versions/3.5-5/topics/tmerge", "tmerge."))), style="color:black")
                              
                            ) # mainPanel
                            ), # Navbar 1, tabPanel
-                  tabPanel(title=tags$h4("Data"), 
+                  tabPanel(title=tags$h4("DATA"), 
                            sidebarLayout(sidebarPanel(
                              fileInput('file','File input',
                                        accept=c('text/csv',
@@ -101,7 +100,7 @@ ui <- fluidPage(titlePanel(div(tags$h1("Visualizing Survival Curves with Time-Va
                              )
                            )    
                   ),
-                  tabPanel(title=tags$h4("Plot"), 
+                  tabPanel(title=tags$h4("PLOT"), 
                            sidebarLayout(
                              sidebarPanel(
                                #fileInput("file","File input"),
@@ -114,11 +113,12 @@ ui <- fluidPage(titlePanel(div(tags$h1("Visualizing Survival Curves with Time-Va
                              ),
                              mainPanel(
                                h2("Jay-Betensky Survival Curve "),
-                               plotOutput("KM")
+                               plotOutput("KM"),
+                               h6("* Raw number at risk.", style="color:black")
                              )
                            )
                   ),
-                  tabPanel(title=tags$h4("Comparison Plots"),
+                  tabPanel(title=tags$h4("COMPARISON PLOT"),
                            sidebarLayout(
                              sidebarPanel(
                                
@@ -186,27 +186,66 @@ server <- function(input, output) {
               transition_times = input$transition_time, weights = input$weight)
   })
   KM_plot <- reactive({
-    p <- ggplot(data = cp_survfit(), aes(t, surv)) +
-      geom_step(size = 0.75,color = "#d11947") +
-      labs(x = "Time in Years", y = "Survival Probability") +
-      theme_classic()+
-      {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+    # p <- ggplot(data = cp_survfit(), aes(t, surv)) +
+    #   geom_step(size = 0.75,color = "#D11947") +
+    #   labs(x = "Time in Years", y = "Survival Probability") +
+    #   theme_classic()+
+    #   {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+    p <- grid.arrange(ggplot(data = cp_survfit(), aes(t,surv)) +
+                        geom_step(linewidth = 0.75, color = "#D11947") +
+                        labs(x = "Time in Years", y = "Survival Probability")+
+                        theme_classic() +
+                        {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)},
+                      ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
+                                  break.time.by = 3, fontsize = 3, ylab = "",
+                                  risk.table.title = "Number at risk*"))
+      
     p
   })
   output$KM <- renderPlot({
     if (input$example){
-      p <- ggplot(data = cp_survfit_example(), aes(t, surv)) +
-        geom_step(size = 0.75,color = "#d11947") +
-        theme_classic()+
-        labs(x = "Time in Years", y = "Survival Probability") +
+      # p <- ggplot(data = cp_survfit_example(), aes(t, surv)) +
+      #   geom_step(size = 0.75,color = "#D11947") +
+      #   theme_classic()+
+      #   labs(x = "Time in Years", y = "Survival Probability") +
+      #   {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+      #
+       # p <- grid.arrange(ggplot(data = cp_survfit_example(), aes(t,surv)) +
+       #                         geom_step(linewidth = 0.75, color = "#D11947") +
+       #                         labs(x = "Time in Years", y = "Survival Probability")+
+       #                         theme_classic() +
+       #                         {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)},
+       #                       ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
+       #                                   break.time.by = 3, fontsize = 3, ylab = "",
+       #                                   risk.table.title = "Number at risk*"))
+      p1 <- ggplot(data = cp_survfit_example(), aes(t,surv)) +
+                                geom_step(linewidth = 0.75, color = "#D11947") +
+                                labs(x = "Time in Years", y = "Survival Probability")+
+                                #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))+
+                                scale_x_continuous(name="Time", breaks=c(0,3, 6, 9, 12), limits=c(0, 12))+
+                                theme_classic() +
         {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+      q <- ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
+                                                         break.time.by = 3, fontsize = 5, ylab = "",
+                                                         risk.table.title = "Number at risk*", axes.offset=F, xlim(0,12))
+      #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))
+      #p <- ggdraw()+draw_plot(p1, 0, 0.5, 1, 0.5) + draw_plot(q, 0, 0, 1, 0.5)
+      p <- ggarrange(p1, q, heights=c(12, 4), nrow=2, align="v")
     }
     else{
-      p <- ggplot(data = cp_survfit(), aes(t, surv)) +
-        geom_step(size = 0.75,color = "#d11947") +
-        theme_classic()+
-        labs(x = "Time in Years", y = "Survival Probability") +
-        {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+      # p <- ggplot(data = cp_survfit(), aes(t, surv)) +
+      #   geom_step(size = 0.75,color = "#D11947") +
+      #   theme_classic()+
+      #   labs(x = "Time in Years", y = "Survival Probability") +
+      #   {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+       p <- grid.arrange(ggplot(data = cp_survfit(), aes(t,surv)) +
+                               geom_step(linewidth = 0.75, color = "#D11947") +
+                               labs(x = "Time in Years", y = "Survival Probability")+
+                               theme_classic() +
+                               {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)},
+                             ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
+                                         break.time.by = 3, fontsize = 3, ylab = "",
+                                         risk.table.title = "Number at risk*"))
     }
     p
   })
