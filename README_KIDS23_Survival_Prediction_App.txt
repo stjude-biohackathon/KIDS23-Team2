@@ -1,13 +1,15 @@
 KIDS23 Survival Prediction App
 
-
 About the app
-The KIDS23 Survival Prediction App is a R Shiny App that can perform survival analysis using any user-uploaded file. Once the user uploads the data file in the DATA tab, the app provides a survival prediction curve that can be viewed or downloaded in the PLOT tab. These survival prediction curves are highly useful in biomedical research and clinical trials concerning effectiveness of treatments and interventions. A typical analysis deals with clinical data containing information about time-to-event occurrence of death, withdrawal, relapse, adverse drug reaction and the appearance of secondary infection or disease.
+The KIDS23 Survival Prediction App is an R Shiny App that can perform survival analysis using an appropriate user-uploaded file. Typical examples of survival analysis clinical data include information about time-to-event occurrence of death, withdrawal, relapse, adverse drug reaction and the appearance of secondary infection or disease.
+The main objective of the app is to provide an intuitive interface for interpreting survival analysis results with time-varying covariates. Most methods that use extensions of the Cox proportional hazard to study the association between a variable that can change after baseline and a time-to-event outcome of interest fail to accommodate more than one covariate value changes without any functional assumptions at intermediate time points. 
+A new approach described by Jay & Betensky (2021) predicts the survival function for a user-specified trajectory of the time-varying covariates. The KIDS23 app uses this method to predict survival curves for an interpretable way to communicate results of biomedical research and clinical trials concerning effectiveness of treatments and interventions. 
 
+How to use the app
+Once the user uploads the data file in the DATA tab, the app provides a survival prediction curve that can be viewed or downloaded in the PLOT tab. This plot is accompanied by a ‘number at risk table’ that gives information about ….The app also allows for comparison of two different transition times in the COMPARISON tab.
 
 Data File Format
-The ideal data file should be in comma-separated values (csv) format with the corresponding columns in the specified order: id, start, stop, event status, discrete time-varying covariate, additional covariates if using stabilized weights. The data file needs to be transformed using the tmerge() function in r survival library. This will allow the users to create a dataset with multiple time intervals for the different covariate values for each subject. For more information, please refer to the r documentation/vignette.
-
+The expected data file should be in comma-separated values (csv) format with the corresponding columns in the specified order: id, start, stop, event status, discrete time-varying covariate, additional covariates if using stabilized weights. The data needs to be transformed using the tmerge() function in r survival library. This will allow the users to create a dataset with multiple time intervals for the different covariate values for each subject. For more information about tmerge and time-varying covariates, please refer to the r documentation/vignette.
 
 Customisations
 a. Users can play with the transition times of the survival curves in the PLOT tab. It also gives information about the 'number at risk.' 
