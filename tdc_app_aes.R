@@ -220,6 +220,7 @@ server <- function(input, output) {
   )
   #output$value <- renderText({ input$times })
   
+  # With user input data
   comp_data <- reactive({
     nums <- extract(input$times)
     tdc_list <- list()
@@ -269,6 +270,32 @@ server <- function(input, output) {
     data$transition <- factor(data$transition, levels=levs)
     return(data)
   })
+  
+  # With user example data
+  comp_data_example <- reactive({
+    nums <- extract(input$times)
+    tdc_list <- list()
+    tdc_df_list <- list()
+    for(i in 1:length(nums)){
+      tempCP <- survfitCP(example_data(),
+                          covariate_vals = c(0,1), # Values on covariate path
+                          transition_times = nums[i], # Transition from covariate value 0 to 1 at time 5
+                          weights = input$weights2) # Use stabilized weights
+      tempCP.df <- cbind.data.frame(tempCP, "transition"=paste0(nums[i]))
+      tdc_list[[i]] <- tempCP
+      tdc_df_list[[i]] <- tempCP.df
+    }
+    data <- do.call(rbind.data.frame, tdc_df_list)
+    data
+  })
+  
+  all_data_factor_example <- reactive({
+    data <- comp_data_example()
+    levs <- unique(data$transition[order(as.numeric(data$transition))])
+    data$transition <- factor(data$transition, levels=levs)
+    return(data)
+  })
+  
 
 
   compareplot <- reactive({
@@ -285,14 +312,41 @@ server <- function(input, output) {
       #scale_color_discrete(name = "Transition", values=pal) +
       theme(legend.position = "bottom") +
       #scale_cor_brewer(palette="Reds", direction=-1)+
-      scale_coloolr_manual(values=pal4)+
+      scale_color_manual(values=pal4)+
       {if (input$CI_checkbox2) geom_ribbon(aes(color = transition, ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
 
     p
   })
+  
+  compareplot_example <- reactive({
+    #pal <- c("#d11947", "#cb5036", "#bf7235", "#b28c48", "#a7a168", "#a5b28c", "#afbfae", "#c7c9c8")
+    pal <- brewer.pal(n=9, name="Reds")[9:3]
+    pal2 <- c("#D11947", "#C21343", "#B40E3F", "#A6093B", "#970337", "#910B3C", "#A23B61", "#B36A84", "#C599A9", "#D6C9CD", "#CFD1D0", "#AFB1B3", "#8F9296", "#6F7379", "#4F535C", "#5B5F67", "#767A7F", "#919497", "#ACAEAF", "#C7C9C8")
+    pal3 <- c("#D11947", "#C11342", "#B20D3E", "#A3083A", "#940236", "#850837", "#75193E", "#662A46", "#563B4D", "#474C55")
+    pal4 <- c("#8d0034","#a64355","#bc6f79", "#d0999f","#e2c5c7","#cccdcf","#a9abaf",
+              "#878a90","#666a72","#474c55")
+    p <- ggplot(all_data_factor_example(), aes(t,surv)) + geom_step(aes(color = transition)) +
+      labs(x = "Time", y = "Survival Probability") +
+      theme_classic() +
+      labs(color="Transition Time")+
+      #scale_color_discrete(name = "Transition", values=pal) +
+      theme(legend.position = "bottom") +
+      #scale_cor_brewer(palette="Reds", direction=-1)+
+      scale_color_manual(values=pal4)+
+      {if (input$CI_checkbox2) geom_ribbon(aes(color = transition, ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+    
+    p
+  })
+  
 
   output$compare_plot <- renderPlot({
-    compareplot()
+    if(input$example){
+      q <- compareplot_example()
+    }
+    else{
+      q<- compareplot()
+    }
+    q
   })
   
   output$CompPlot <- downloadHandler(
