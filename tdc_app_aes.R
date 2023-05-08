@@ -1,3 +1,6 @@
+# Source code and load Libraries
+source("survfitCP.R")
+source("functionTmergeToConventional.R")
 
 library(shiny)
 library(survival)
@@ -6,7 +9,6 @@ library(tidyverse)
 library(fresh)
 library(shinythemes)
 library(shinyWidgets)
-source("survfitCP.R")
 library(dplyr)
 library(DT)
 library(RColorBrewer)
@@ -35,6 +37,7 @@ ui <- fluidPage(titlePanel(div(tags$h1("KIDS23 Time-Dependent Covariate Survival
                                " Anna Eames Seffernick,", tags$sup("1"), " Chengzhou Wu,", tags$sup("4"), " Emily Zeng", tags$sup("1"))), style="color:black")),
                              p(tags$h6("This work was inspired by Rosalie.", style="color:black")),
                              div(img(src="Rosalie.jpg", height=300, width=210), style="text-align:center"),
+                             div(h6("Photo Credit: Jared Andrews"), style="text-align:center"),
                              p(h6(HTML(paste0(tags$sup("1"), "St. Jude Children's Research Hospital, Department of Biostatistics")), style="color:black")),
                              p(h6(HTML(paste0(tags$sup("2"), "California Institute of Technology, Biology and Bioengineering Division")), style="color:black")),
                              p(h6(HTML(paste0(tags$sup("3"), "?")))),
@@ -92,11 +95,15 @@ ui <- fluidPage(titlePanel(div(tags$h1("KIDS23 Time-Dependent Covariate Survival
                                        accept=c('text/csv',
                                                 'text/comma-separated-values,text/plain',
                                                 '.csv')),
+                             # Select Variable from the selected Dataset 
+                             uiOutput('select'),
+                             # show example data
                              checkboxInput("example","Example data",value=FALSE),
                              ),
                              mainPanel(
                                DT::dataTableOutput('contents'),
-                               plotOutput('distPlot')
+                               verbatimTextOutput('summary'),
+                               #plotOutput('distPlot')
                              )
                            )    
                   ),
@@ -152,7 +159,7 @@ server <- function(input, output) {
   raw_surv_data_1 <- reactive({
     data<-raw_surv_data()
     data<-tMergeToConventional(data)
-    data<-data[,5:8]
+    data<-data[,5:ncol(data)]
   })
   example_data <- reactive({
     #paste0(getwd(), "/example.csv")
@@ -166,6 +173,23 @@ server <- function(input, output) {
         formatStyle(columns = c(1:ncol(raw_surv_data())), 'text-align' = 'center')
     }
   })
+  
+  # select based on drop down variable
+  output$select <- renderUI({
+    selectInput("Variable","Variable",names(raw_surv_data_1()),selected=NULL)
+  })
+  
+  output$summary <- renderPrint({
+    
+    df<-raw_surv_data_1()
+    df<-as.data.frame(df)
+    
+    if (length(unique(df[[input$Variable]]))>10){
+      summary<-summary(df[[input$Variable]])
+    } else {summary<-table(df[[input$Variable]])}
+    print(summary)
+  })  
+  
   surv_data <- reactive({
     raw_surv <- raw_surv_data()
     # data.frame(
@@ -222,12 +246,12 @@ server <- function(input, output) {
                                 geom_step(linewidth = 0.75, color = "#D11947") +
                                 labs(x = "Time in Years", y = "Survival Probability")+
                                 #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))+
-                                scale_x_continuous(name="Time", breaks=c(0,3, 6, 9, 12), limits=c(0, 12))+
+                                #scale_x_continuous(name="Time", breaks=c(0,3, 6, 9, 12), limits=c(0, 12))+
                                 theme_classic() +
         {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
       q <- ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
                                                          break.time.by = 3, fontsize = 5, ylab = "",
-                                                         risk.table.title = "Number at risk*", axes.offset=F, xlim(0,12))
+                                                         risk.table.title = "Number at risk*", axes.offset=F) #, axes.offset=F, xlim(0,12))
       #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))
       #p <- ggdraw()+draw_plot(p1, 0, 0.5, 1, 0.5) + draw_plot(q, 0, 0, 1, 0.5)
       p <- ggarrange(p1, q, heights=c(12, 4), nrow=2, align="v")
@@ -238,14 +262,19 @@ server <- function(input, output) {
       #   theme_classic()+
       #   labs(x = "Time in Years", y = "Survival Probability") +
       #   {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
-       p <- grid.arrange(ggplot(data = cp_survfit(), aes(t,surv)) +
-                               geom_step(linewidth = 0.75, color = "#D11947") +
-                               labs(x = "Time in Years", y = "Survival Probability")+
-                               theme_classic() +
-                               {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)},
-                             ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = example_data()), data = example_data(),
-                                         break.time.by = 3, fontsize = 3, ylab = "",
-                                         risk.table.title = "Number at risk*"))
+      p1 <- ggplot(data = cp_survfit(), aes(t,surv)) +
+        geom_step(linewidth = 0.75, color = "#D11947") +
+        labs(x = "Time in Years", y = "Survival Probability")+
+        #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))+
+        #scale_x_continuous(name="Time", breaks=c(0,3, 6, 9, 12), limits=c(0, 12))+
+        theme_classic() +
+        {if (input$CI_checkbox) geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.2)}
+      q <- ggrisktable(survfit(Surv(tstart, tstop, endpt) ~ 1, data = raw_surv_data()), data=raw_surv_data(),
+                       break.time.by = 3, fontsize = 5, ylab = "",
+                       risk.table.title = "Number at risk*", axes.offset=F) #, axes.offset=F, xlim(0,12))
+      #theme(axis.text=element_text(size=20), axis.title=element_text(size=22))
+      #p <- ggdraw()+draw_plot(p1, 0, 0.5, 1, 0.5) + draw_plot(q, 0, 0, 1, 0.5)
+      p <- ggarrange(p1, q, heights=c(12, 4), nrow=2, align="v")
     }
     p
   })
